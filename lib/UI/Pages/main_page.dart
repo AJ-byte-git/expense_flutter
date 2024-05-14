@@ -1,6 +1,4 @@
 import 'package:expense_app/UI/Utils/category.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
@@ -95,10 +93,9 @@ class _main_pageState extends State<main_page> {
               padding: const EdgeInsets.all(10),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                child: category()
-                ,
+                child: category(),
               ),
-            )
+            ),
           ],
         ));
   }
