@@ -17,7 +17,7 @@ List<String> buttonLabels = [
   "Travel",
   "Friend"
 ];
-int selectedIndex = -1;
+int selectedIndex = 0;
 TextEditingController textEditingController = TextEditingController();
 
 class _categoryState extends State<category> {

@@ -17,7 +17,7 @@ class _main_pageState extends State<main_page> {
           backgroundColor: Colors.lightBlue,
           leading: IconButton(
             onPressed: () {
-              //TODO
+              //TODO drawer
               Fluttertoast.showToast(
                 msg: "Working",
                 toastLength: Toast.LENGTH_SHORT,
@@ -83,19 +83,35 @@ class _main_pageState extends State<main_page> {
                     ],
                   )),
             ),
-            Divider(
-              color: Colors.black87,
-              indent: 10,
-              height: 2,
-              endIndent: 10,
-            ),
-            Padding(
-              padding: const EdgeInsets.all(10),
+            const Divider(color: Colors.black87, height: 2),
+            const Padding(
+              padding: EdgeInsets.only(top: 10, bottom: 10),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: category(),
               ),
             ),
+            const Divider(
+              color: Colors.black87,
+              height: 2,
+            ),
+            Container(
+              child: Expanded(
+                  child: Container(
+                color: Colors.red,
+                height: 1000,
+                margin: const EdgeInsets.all(10),
+                child: ListView(
+                  shrinkWrap: true,
+                  scrollDirection: Axis.vertical,
+                  children: [
+                    Text("test"),
+                    Text("test"),
+                    Text("test"),
+                  ],
+                ),
+              )),
+            )
           ],
         ));
   }
