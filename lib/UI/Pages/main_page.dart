@@ -1,5 +1,7 @@
 import 'package:expense_app/UI/Utils/category.dart';
 import 'package:expense_app/UI/Utils/expense.dart';
+import 'package:expense_app/auth/google_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
@@ -9,23 +11,25 @@ class main_page extends StatefulWidget {
   @override
   State<main_page> createState() => _main_pageState();
 }
+void signOutUser(){
+  FirebaseAuth.instance.signOut();
+}
 
 class _main_pageState extends State<main_page> {
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.lightBlue,
-        leading: IconButton(
-          onPressed: () {
-            Fluttertoast.showToast(
-              msg: "Working",
-              toastLength: Toast.LENGTH_SHORT,
-              gravity: ToastGravity.BOTTOM,
+        leading:Builder(
+          builder: (context) {
+            return IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () {
+                Scaffold.of(context).openDrawer();
+              },
             );
           },
-          icon: const Icon(Icons.menu),
         ),
         centerTitle: true,
         title: const Text(
@@ -126,6 +130,21 @@ class _main_pageState extends State<main_page> {
         },
         backgroundColor: Colors.red,
         child: const Icon(Icons.add),
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: const EdgeInsets.all(5),
+          children: [
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text("Log Out"),
+              onTap:(){
+                Navigator.pop(context);
+                signOutUser();
+              },
+            )
+          ],
+        ),
       ),
     );
   }
