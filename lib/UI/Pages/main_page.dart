@@ -1,27 +1,28 @@
 import 'package:expense_app/UI/Utils/category.dart';
 import 'package:expense_app/UI/Utils/expense.dart';
-import 'package:expense_app/auth/google_auth.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
-class main_page extends StatefulWidget {
-  const main_page({super.key});
+class Main_page extends StatefulWidget {
+  const Main_page({super.key});
 
   @override
-  State<main_page> createState() => _main_pageState();
+  State<Main_page> createState() => _Main_pageState();
 }
-void signOutUser(){
+
+void signOutUser() {
   FirebaseAuth.instance.signOut();
 }
+class _Main_pageState extends State<Main_page> {
 
-class _main_pageState extends State<main_page> {
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.lightBlue,
-        leading:Builder(
+        leading: Builder(
           builder: (context) {
             return IconButton(
               icon: const Icon(Icons.menu),
@@ -109,24 +110,21 @@ class _main_pageState extends State<main_page> {
               )
             ]),
           ),
-          Container(
-            child: Expanded(
-                child: Container(
-              height: 900,
-              margin: const EdgeInsets.all(10),
-              child: ListView(
-                shrinkWrap: true,
-                scrollDirection: Axis.vertical,
-                children: [Expense(money: 11, category: "test", date: "test")],
-              ),
-            )),
-          )
+          Expanded(
+              child: Container(
+            height: 900,
+            margin: const EdgeInsets.all(10),
+            child: ListView(
+              shrinkWrap: true,
+              scrollDirection: Axis.vertical,
+              children: [Expense(money: 11, category: "test", date: "test")],
+            ),
+          ))
         ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Fluttertoast.showToast(
-              msg: "working", toastLength: Toast.LENGTH_LONG);
+          showBottomSheetDialog(context);
         },
         backgroundColor: Colors.red,
         child: const Icon(Icons.add),
@@ -135,17 +133,73 @@ class _main_pageState extends State<main_page> {
         child: ListView(
           padding: const EdgeInsets.all(5),
           children: [
+            GestureDetector(
+              child: const DrawerHeader(
+                margin: EdgeInsets.all(10),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.account_circle,
+                      size: 100,
+                    ),
+                    Text("//User Name")
+                  ],
+                ),
+              ),
+              onTap: () => Fluttertoast.showToast(
+                  msg: "working", toastLength: Toast.LENGTH_LONG),
+              //here open the profile and all
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings),
+              onTap: () => Fluttertoast.showToast(
+                  msg: "working", toastLength: Toast.LENGTH_LONG),
+              //guide to settings
+              title: const Text("Settings"),
+            ),
+            ListTile(
+              leading: const Icon(Icons.feedback_rounded),
+              title: const Text("Feedback"),
+              onTap: () => Fluttertoast.showToast(
+                  msg: "working", toastLength: Toast.LENGTH_SHORT),
+            ),
             ListTile(
               leading: const Icon(Icons.logout),
               title: const Text("Log Out"),
-              onTap:(){
+              onTap: () {
                 Navigator.pop(context);
                 signOutUser();
               },
-            )
+            ),
           ],
         ),
       ),
     );
   }
+}
+
+void showBottomSheetDialog(BuildContext context) {
+  final textCont = TextEditingController();
+  showModalBottomSheet(context: context, builder: (BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height ,
+      width: MediaQuery.of(context).size.width,
+      color: const Color.fromRGBO(0, 0, 0, 0.001),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(15.0),
+            child: TextField(
+              controller: textCont,
+              decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: "Enter Expense Here!!"),
+            ),
+          )
+        ],
+      ),
+    );
+  });
 }
