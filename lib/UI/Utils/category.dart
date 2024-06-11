@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
-class category extends StatefulWidget {
-  const category({super.key});
+class CategoryWidget extends StatefulWidget {
+  final Function(String) onCategorySelected;
+
+  const CategoryWidget({Key? key, required this.onCategorySelected}) : super(key: key);
 
   @override
-  State<category> createState() => _categoryState();
+  State<CategoryWidget> createState() => _CategoryWidgetState();
 }
 
 List<String> buttonLabels = [
@@ -20,13 +22,22 @@ List<String> buttonLabels = [
 int selectedIndex = 0;
 TextEditingController textEditingController = TextEditingController();
 
-class _categoryState extends State<category> {
+class _CategoryWidgetState extends State<CategoryWidget> {
+  @override
+  void initState() {
+    super.initState();
+    // Pass the initially selected category when the widget is initialized
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onCategorySelected(buttonLabels[selectedIndex]);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Row(
       children: List.generate(
         buttonLabels.length,
-        (index) => _buildButton(buttonLabels[index], index),
+            (index) => _buildButton(buttonLabels[index], index),
       ),
     );
   }
@@ -39,7 +50,7 @@ class _categoryState extends State<category> {
           setState(() {
             selectedIndex = index;
           });
-          //Sort functionality will be added here
+          widget.onCategorySelected(buttonLabels[index]);
         },
         style: ButtonStyle(
           backgroundColor: MaterialStateProperty.all<Color>(

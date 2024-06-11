@@ -1,5 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:expense_app/UI/Utils/CategoryBottomSheet.dart';
 import 'package:expense_app/UI/Utils/category.dart';
-import 'package:expense_app/UI/Utils/expense.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -14,11 +15,10 @@ class Main_page extends StatefulWidget {
 void signOutUser() {
   FirebaseAuth.instance.signOut();
 }
-class _Main_pageState extends State<Main_page> {
 
+class _Main_pageState extends State<Main_page> {
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.lightBlue,
@@ -90,11 +90,15 @@ class _Main_pageState extends State<Main_page> {
                 )),
           ),
           const Divider(color: Colors.black87, height: 2),
-          const Padding(
-            padding: EdgeInsets.only(top: 10, bottom: 10),
+          Padding(
+            padding: const EdgeInsets.only(top: 10, bottom: 10),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: category(),
+              child: CategoryWidget(onCategorySelected: (String selectedCategory) {
+                // Handle the category selected
+                Fluttertoast.showToast(
+                    msg: selectedCategory, toastLength: Toast.LENGTH_SHORT);
+              }),
             ),
           ),
           const Divider(
@@ -110,16 +114,7 @@ class _Main_pageState extends State<Main_page> {
               )
             ]),
           ),
-          Expanded(
-              child: Container(
-            height: 900,
-            margin: const EdgeInsets.all(10),
-            child: ListView(
-              shrinkWrap: true,
-              scrollDirection: Axis.vertical,
-              children: [Expense(money: 11, category: "test", date: "test")],
-            ),
-          ))
+          // The main content and the expense list go here
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -148,13 +143,13 @@ class _Main_pageState extends State<Main_page> {
               ),
               onTap: () => Fluttertoast.showToast(
                   msg: "working", toastLength: Toast.LENGTH_LONG),
-              //here open the profile and all
+              // Here, open the profile and other options
             ),
             ListTile(
               leading: const Icon(Icons.settings),
               onTap: () => Fluttertoast.showToast(
                   msg: "working", toastLength: Toast.LENGTH_LONG),
-              //guide to settings
+              // Guide to settings
               title: const Text("Settings"),
             ),
             ListTile(
@@ -179,27 +174,76 @@ class _Main_pageState extends State<Main_page> {
 }
 
 void showBottomSheetDialog(BuildContext context) {
+  final User? user = FirebaseAuth.instance.currentUser;
+  if (user == null) {
+    Fluttertoast.showToast(
+        msg: "User not signed in", toastLength: Toast.LENGTH_SHORT);
+    return;
+  }
+
   final textCont = TextEditingController();
-  showModalBottomSheet(context: context, builder: (BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height ,
-      width: MediaQuery.of(context).size.width,
-      color: const Color.fromRGBO(0, 0, 0, 0.001),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(15.0),
-            child: TextField(
-              controller: textCont,
-              decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: "Enter Expense Here!!"),
-            ),
-          )
-        ],
-      ),
-    );
-  });
+
+  showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Container(
+          height: 500,
+          width: MediaQuery.of(context).size.width,
+          color: const Color.fromRGBO(0, 0, 0, 0.001),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                  padding: EdgeInsets.all(15.0),
+                  child: Text("Expense", style: TextStyle(fontSize: 24))),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(15, 10, 15, 15),
+                child: TextField(
+                  controller: textCont,
+                  decoration: const InputDecoration(
+                      labelText: "Enter your expense here!",
+                      border: OutlineInputBorder()),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(15, 15, 15, 15),
+                child: Text("Choose the category!"),
+              ),
+              CategoryBottomSheet(onSave: (String selectedCategory) {
+                onSave(context, textCont.text.trim(), selectedCategory, user.uid);
+              })
+            ],
+          ),
+        );
+      });
+}
+
+Future<void> onSave(BuildContext context, String money, String category, String userId) async {
+  if (money.isEmpty || category.isEmpty) {
+    Fluttertoast.showToast(
+        msg: "Please enter a valid expense and category",
+        toastLength: Toast.LENGTH_SHORT);
+    return;
+  }
+
+  try {
+    await FirebaseFirestore.instance.collection('data').add({
+      'money': money,
+      'category': category,
+      'userId': userId,
+      'timestamp': FieldValue.serverTimestamp(), // Optional: Add a timestamp
+    });
+
+    Fluttertoast.showToast(
+        msg: "Expense added successfully",
+        toastLength: Toast.LENGTH_SHORT);
+
+    Navigator.pop(context); // Close the bottom sheet
+  } catch (e) {
+    Fluttertoast.showToast(
+        msg: "Failed to add expense: $e",
+        toastLength: Toast.LENGTH_LONG);
+  }
 }
