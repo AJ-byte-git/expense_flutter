@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:expense_app/UI/Pages/ExpenseShower.dart';
 import 'package:expense_app/UI/Utils/CategoryBottomSheet.dart';
 import 'package:expense_app/UI/Utils/category.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
 class Main_page extends StatefulWidget {
@@ -94,10 +97,9 @@ class _Main_pageState extends State<Main_page> {
             padding: const EdgeInsets.only(top: 10, bottom: 10),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: CategoryWidget(onCategorySelected: (String selectedCategory) {
+              child:
+                  CategoryWidget(onCategorySelected: (String selectedCategory) {
                 // Handle the category selected
-                Fluttertoast.showToast(
-                    msg: selectedCategory, toastLength: Toast.LENGTH_SHORT);
               }),
             ),
           ),
@@ -114,7 +116,9 @@ class _Main_pageState extends State<Main_page> {
               )
             ]),
           ),
-          // The main content and the expense list go here
+          const Expanded(
+            child: ExpenseShower(),
+          )
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -212,7 +216,8 @@ void showBottomSheetDialog(BuildContext context) {
                 child: Text("Choose the category!"),
               ),
               CategoryBottomSheet(onSave: (String selectedCategory) {
-                onSave(context, textCont.text.trim(), selectedCategory, user.uid);
+                onSave(
+                    context, textCont.text.trim(), selectedCategory, user.uid);
               })
             ],
           ),
@@ -220,7 +225,8 @@ void showBottomSheetDialog(BuildContext context) {
       });
 }
 
-Future<void> onSave(BuildContext context, String money, String category, String userId) async {
+Future<void> onSave(
+    BuildContext context, String money, String category, String userId) async {
   if (money.isEmpty || category.isEmpty) {
     Fluttertoast.showToast(
         msg: "Please enter a valid expense and category",
@@ -237,13 +243,11 @@ Future<void> onSave(BuildContext context, String money, String category, String 
     });
 
     Fluttertoast.showToast(
-        msg: "Expense added successfully",
-        toastLength: Toast.LENGTH_SHORT);
+        msg: "Expense added successfully", toastLength: Toast.LENGTH_SHORT);
 
     Navigator.pop(context); // Close the bottom sheet
   } catch (e) {
     Fluttertoast.showToast(
-        msg: "Failed to add expense: $e",
-        toastLength: Toast.LENGTH_LONG);
+        msg: "Failed to add expense: $e", toastLength: Toast.LENGTH_LONG);
   }
 }
