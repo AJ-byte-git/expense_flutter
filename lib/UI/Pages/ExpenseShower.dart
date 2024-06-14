@@ -11,6 +11,14 @@ class ExpenseShower extends StatefulWidget {
 }
 
 class _ExpenseShowerState extends State<ExpenseShower> {
+  Future<QuerySnapshot> _fetchExpenses(String userId) {
+    return FirebaseFirestore.instance
+        .collection('data')
+        .where('userId', isEqualTo: userId)
+        .orderBy('cat')
+        .get();
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -21,12 +29,8 @@ class _ExpenseShowerState extends State<ExpenseShower> {
       return const Center(child: Text('User not authenticated'));
     }
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('data')
-          .where('userId', isEqualTo: userId)
-          .orderBy('cat')
-          .snapshots(),
+    return FutureBuilder<QuerySnapshot>(
+      future: _fetchExpenses(userId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());

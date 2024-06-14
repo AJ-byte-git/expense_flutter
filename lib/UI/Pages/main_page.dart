@@ -1,12 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:expense_app/DataBase/FirestoreService.dart';
 import 'package:expense_app/UI/Pages/ExpenseShower.dart';
 import 'package:expense_app/UI/Utils/CategoryBottomSheet.dart';
 import 'package:expense_app/UI/Utils/category.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'dart:async';
+
+import 'package:logger/logger.dart';
 
 class Main_page extends StatefulWidget {
   const Main_page({super.key});
@@ -20,6 +22,76 @@ void signOutUser() {
 }
 
 class _Main_pageState extends State<Main_page> {
+  final FirestoreService _firestoreService = FirestoreService();
+  final String docId = 'myVariable'; // Unique ID for your document
+  String _variableValue = '';
+  final _controller = TextEditingController();
+  late Timer _timer;
+  final logger = Logger();
+
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVariable();
+    // Calculate duration until the end of the current month
+    Duration durationUntilEndOfMonth = _calculateDurationUntilEndOfMonth();
+
+    // Initialize the timer to run at the end of the current month
+    _timer = Timer(durationUntilEndOfMonth, () {
+      _updateVariableToZero();
+      // Reschedule for next month
+      _rescheduleEndOfMonthTask();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel(); // Cancel the timer to avoid memory leaks
+    super.dispose();
+  }
+
+  Future<void> _updateVariableToZero() async {
+    try {
+      await _firestoreService.updateVariable(docId, '0');
+      logger.d("Variable updated successfully");
+    } catch (e) {
+      logger.e("change failed: $e");
+      // Handle error, if any
+    }
+  }
+
+  void _rescheduleEndOfMonthTask() {
+    Duration durationUntilEndOfMonth = _calculateDurationUntilEndOfMonth();
+    _timer = Timer(durationUntilEndOfMonth, () {
+      _updateVariableToZero();
+      // Reschedule for next month
+      _rescheduleEndOfMonthTask();
+    });
+  }
+
+  Duration _calculateDurationUntilEndOfMonth() {
+    DateTime now = DateTime.now();
+    DateTime endOfMonth = DateTime(now.year, now.month + 1,
+        0); // Set to first day of next month and subtract 1 day
+    Duration duration = endOfMonth.difference(now);
+    return duration;
+  }
+
+  Future<void> _loadVariable() async {
+    String? value = await _firestoreService.getVariable(docId);
+    setState(() {
+      _variableValue = value ?? '';
+    });
+  }
+
+  Future<void> _setVariable(String value) async {
+    await _firestoreService.setVariable(docId, value);
+    setState(() {
+      _variableValue = value;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -51,21 +123,36 @@ class _Main_pageState extends State<Main_page> {
                     borderRadius: BorderRadius.circular(20)),
                 height: 200,
                 width: 380,
-                child: const Column(
+                child: Column(
                   children: [
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Padding(
-                          padding: EdgeInsets.only(top: 15, left: 25),
-                          child: Text(
-                            "//budget",
-                            style: TextStyle(fontSize: 40),
-                          ),
-                        ),
+                            padding: const EdgeInsets.only(top: 15, left: 25),
+                            child: StreamBuilder<DocumentSnapshot>(
+                                stream:
+                                    _firestoreService.getVariableStream(docId),
+                                builder: (BuildContext context,
+                                    AsyncSnapshot<DocumentSnapshot> snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const CircularProgressIndicator();
+                                  }
+                                  if (!snapshot.hasData ||
+                                      !snapshot.data!.exists) {
+                                    return const Text("No data Found");
+                                  }
+                                  Map<String, dynamic> data = snapshot.data!
+                                      .data() as Map<String, dynamic>;
+                                  String variableValue =
+                                      data['value'] as String;
+                                  return Text("Budget: $variableValue",
+                                      style: const TextStyle(fontSize: 40));
+                                })),
                       ],
                     ),
-                    Row(
+                    const Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Padding(
@@ -77,7 +164,7 @@ class _Main_pageState extends State<Main_page> {
                         )
                       ],
                     ),
-                    Row(
+                    const Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Padding(
@@ -148,6 +235,41 @@ class _Main_pageState extends State<Main_page> {
               onTap: () => Fluttertoast.showToast(
                   msg: "working", toastLength: Toast.LENGTH_LONG),
               // Here, open the profile and other options
+            ),
+            ListTile(
+              leading: const Icon(Icons.attach_money),
+              onTap: () {
+                Navigator.of(context).pop();
+                showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        title: const Text("Set Variable"),
+                        content: TextField(
+                          controller: _controller,
+                          decoration: const InputDecoration(
+                              hintText: "Enter new value"),
+                        ),
+                        actions: <Widget>[
+                          TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                              child: const Text("Cancel")),
+                          TextButton(
+                              onPressed: () async {
+                                String newValue = _controller.text;
+                                if (newValue.isNotEmpty) {
+                                  await _setVariable(newValue);
+                                  Navigator.of(context).pop();
+                                }
+                              },
+                              child: const Text("Save"))
+                        ],
+                      );
+                    });
+              },
+              title: const Text("Set budget"),
             ),
             ListTile(
               leading: const Icon(Icons.settings),
