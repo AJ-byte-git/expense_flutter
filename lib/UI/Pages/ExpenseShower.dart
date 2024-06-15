@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:expense_app/UI/Utils/ExpenseTile.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
 
 class ExpenseShower extends StatefulWidget {
   const ExpenseShower({super.key});
@@ -23,6 +24,7 @@ class _ExpenseShowerState extends State<ExpenseShower> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final userId = user?.uid;
+   final logger = Logger();
 
     if (userId == null) {
       // Handle the case where the user is not authenticated
@@ -36,7 +38,7 @@ class _ExpenseShowerState extends State<ExpenseShower> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          print('${snapshot.error}');
+          logger.e("${snapshot.error}");
           return Center(child: Text('Error: ${snapshot.error}'));
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -47,7 +49,7 @@ class _ExpenseShowerState extends State<ExpenseShower> {
         return ListView.builder(
           itemBuilder: (context, index) {
             var data = documents[index].data() as Map<String, dynamic>;
-            print('Document $index: $data');  // Debugging line
+            logger.d("expense: $index: $data"); // Debugging line
             return ExpenseTile(
               category: data['cat'],
               amount: data['money'],

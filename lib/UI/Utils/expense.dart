@@ -5,7 +5,7 @@ class Expense extends StatelessWidget {
   final String category;
   final String date;
 
-  Expense(
+  const Expense(
       {super.key,
       required this.money,
       required this.category,

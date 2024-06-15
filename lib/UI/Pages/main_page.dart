@@ -7,8 +7,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'dart:async';
-
 import 'package:logger/logger.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:showcaseview/showcaseview.dart';
 
 class Main_page extends StatefulWidget {
   const Main_page({super.key});
@@ -28,7 +29,10 @@ class _Main_pageState extends State<Main_page> {
   final _controller = TextEditingController();
   late Timer _timer;
   final logger = Logger();
-
+  final GlobalKey _one = GlobalKey();
+  final GlobalKey _two = GlobalKey();
+  final GlobalKey _three = GlobalKey();
+  final GlobalKey _four = GlobalKey();
 
   @override
   void initState() {
@@ -43,12 +47,30 @@ class _Main_pageState extends State<Main_page> {
       // Reschedule for next month
       _rescheduleEndOfMonthTask();
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      checkFirstRun(context);
+    });
   }
 
   @override
   void dispose() {
     _timer.cancel(); // Cancel the timer to avoid memory leaks
     super.dispose();
+  }
+
+  Future<void> checkFirstRun(BuildContext context) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool? isFirstRun = prefs.getBool('isFirstRun');
+
+    if (isFirstRun == null || isFirstRun) {
+      // Set isFirstRun to false
+      await prefs.setBool('isFirstRun', false);
+
+      // Show the showcase
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ShowCaseWidget.of(context).startShowCase([_one, _two, _three,_four]);
+      });
+    }
   }
 
   Future<void> _updateVariableToZero() async {
@@ -95,7 +117,7 @@ class _Main_pageState extends State<Main_page> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar:AppBar(
         backgroundColor: Colors.lightBlue,
         leading: Builder(
           builder: (context) {
@@ -132,7 +154,7 @@ class _Main_pageState extends State<Main_page> {
                             padding: const EdgeInsets.only(top: 15, left: 25),
                             child: StreamBuilder<DocumentSnapshot>(
                                 stream:
-                                    _firestoreService.getVariableStream(docId),
+                                _firestoreService.getVariableStream(docId),
                                 builder: (BuildContext context,
                                     AsyncSnapshot<DocumentSnapshot> snapshot) {
                                   if (snapshot.connectionState ==
@@ -146,7 +168,7 @@ class _Main_pageState extends State<Main_page> {
                                   Map<String, dynamic> data = snapshot.data!
                                       .data() as Map<String, dynamic>;
                                   String variableValue =
-                                      data['value'] as String;
+                                  data['value'] as String;
                                   return Text("Budget: $variableValue",
                                       style: const TextStyle(fontSize: 40));
                                 })),
@@ -185,7 +207,7 @@ class _Main_pageState extends State<Main_page> {
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child:
-                  CategoryWidget(onCategorySelected: (String selectedCategory) {
+              CategoryWidget(onCategorySelected: (String selectedCategory) {
                 // Handle the category selected
               }),
             ),
@@ -208,13 +230,13 @@ class _Main_pageState extends State<Main_page> {
           )
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showBottomSheetDialog(context);
-        },
-        backgroundColor: Colors.red,
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton:FloatingActionButton(
+          onPressed: () {
+            showBottomSheetDialog(context);
+          },
+          child: const Icon(Icons.add),
+        ),
+
       drawer: Drawer(
         child: ListView(
           padding: const EdgeInsets.all(5),
