@@ -24,7 +24,7 @@ void signOutUser() {
   FirebaseAuth.instance.signOut();
 }
 
-class _Main_pageState extends State<Main_page> {
+class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
   final FirestoreService _firestoreService = FirestoreService();
   final String docId = 'myVariable'; // Unique ID for your document
   String _variableValue = '';
@@ -35,6 +35,8 @@ class _Main_pageState extends State<Main_page> {
   final GlobalKey _two = GlobalKey();
   final GlobalKey _three = GlobalKey();
   final GlobalKey _four = GlobalKey();
+  final User? user = FirebaseAuth.instance.currentUser;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
@@ -116,24 +118,48 @@ class _Main_pageState extends State<Main_page> {
     });
   }
 
+  Future<void> deleteUserData() async {
+    final user = this.user;
+    if (user != null) {
+      String uid = user.uid;
+
+      try {
+        // Delete user document from Firestore
+        await _firestore.collection('users').doc(uid).delete();
+
+        // Delete other collections or documents associated with the user if necessary
+        await _firestore
+            .collection('users')
+            .doc(uid)
+            .collection('posts')
+            .get()
+            .then((snapshot) {
+          for (DocumentSnapshot ds in snapshot.docs) {
+            ds.reference.delete();
+          }
+        });
+
+        // Delete the user from Firebase Auth
+        await user.delete();
+        logger.d("data deleted successfully");
+      } catch (e) {
+        logger.e("There was an error: $e");
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BetterFeedback(
       themeMode: ThemeMode.light,
       theme: FeedbackThemeData(
-        background: Colors.white,
-            feedbackSheetColor: Colors.red,
-        drawColors: [
-          Colors.red,
-          Colors.green,
-          Colors.blue,
-          Colors.yellow
-        ]
-      ),
+          background: Colors.white,
+          feedbackSheetColor: Colors.red,
+          drawColors: [Colors.red, Colors.green, Colors.blue, Colors.yellow]),
       child: Scaffold(
-        backgroundColor: Colors.greenAccent,
+        backgroundColor: Colors.cyan,
         appBar: AppBar(
-          backgroundColor: Colors.lightBlue,
+          backgroundColor: Colors.teal,
           leading: Builder(
             builder: (context) {
               return IconButton(
@@ -146,7 +172,7 @@ class _Main_pageState extends State<Main_page> {
           ),
           centerTitle: true,
           title: const Text(
-            "Expense Report",
+            "Expense Tracker",
             style: TextStyle(fontSize: 18),
           ),
         ),
@@ -168,10 +194,11 @@ class _Main_pageState extends State<Main_page> {
                           Padding(
                               padding: const EdgeInsets.only(top: 15, left: 25),
                               child: StreamBuilder<DocumentSnapshot>(
-                                  stream:
-                                  _firestoreService.getVariableStream(docId),
+                                  stream: _firestoreService
+                                      .getVariableStream(docId),
                                   builder: (BuildContext context,
-                                      AsyncSnapshot<DocumentSnapshot> snapshot) {
+                                      AsyncSnapshot<DocumentSnapshot>
+                                          snapshot) {
                                     if (snapshot.connectionState ==
                                         ConnectionState.waiting) {
                                       return const CircularProgressIndicator();
@@ -183,7 +210,7 @@ class _Main_pageState extends State<Main_page> {
                                     Map<String, dynamic> data = snapshot.data!
                                         .data() as Map<String, dynamic>;
                                     String variableValue =
-                                    data['value'] as String;
+                                        data['value'] as String;
                                     return Text("Budget: $variableValue",
                                         style: const TextStyle(fontSize: 40));
                                   })),
@@ -221,8 +248,8 @@ class _Main_pageState extends State<Main_page> {
               padding: const EdgeInsets.only(top: 10, bottom: 10),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                child:
-                CategoryWidget(onCategorySelected: (String selectedCategory) {
+                child: CategoryWidget(
+                    onCategorySelected: (String selectedCategory) {
                   // Handle the category selected
                 }),
               ),
@@ -246,101 +273,126 @@ class _Main_pageState extends State<Main_page> {
           ],
         ),
         floatingActionButton: FloatingActionButton(
+          backgroundColor: Colors.teal,
           onPressed: () {
             showBottomSheetDialog(context);
           },
           child: const Icon(Icons.add),
         ),
-      
         drawer: Drawer(
-          backgroundColor: Colors.red,
-          child: ListView(
-            padding: const EdgeInsets.all(5),
+          backgroundColor: Colors.cyan,
+          child: Column(
             children: [
-              GestureDetector(
-                child: const DrawerHeader(
-                  margin: EdgeInsets.all(10),
+              Padding(
+                padding: const EdgeInsets.all(.0),
+                child: DrawerHeader(
+                  margin: const EdgeInsets.all(10),
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.account_circle,
-                        size: 100,
+                      CircleAvatar(
+                        backgroundImage: NetworkImage(user!.photoURL!),
+                        radius: 50,
                       ),
-                      Text("//User Name")
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(0, 10, 0, 0),
+                        child: Text("${user?.displayName}"),
+                      )
                     ],
                   ),
                 ),
-                onTap: () =>
-                    Fluttertoast.showToast(
-                        msg: "working", toastLength: Toast.LENGTH_LONG),
-                // Here, open the profile and other options
               ),
-              ListTile(
-                leading: const Icon(Icons.attach_money),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return AlertDialog(
-                          title: const Text("Set Variable"),
-                          content: TextField(
-                            controller: _controller,
-                            decoration: const InputDecoration(
-                                hintText: "Enter new value"),
-                          ),
-                          actions: <Widget>[
-                            TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                },
-                                child: const Text("Cancel")),
-                            TextButton(
-                                onPressed: () async {
-                                  String newValue = _controller.text;
-                                  if (newValue.isNotEmpty) {
-                                    await _setVariable(newValue);
+              Padding(
+                padding: const EdgeInsets.all(5.0),
+                child: ListTile(
+                  leading: const Icon(Icons.attach_money),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            title: const Text("Set Variable"),
+                            content: TextField(
+                              controller: _controller,
+                              decoration: const InputDecoration(
+                                  hintText: "Enter new value"),
+                            ),
+                            actions: <Widget>[
+                              TextButton(
+                                  onPressed: () {
                                     Navigator.of(context).pop();
-                                  }
-                                },
-                                child: const Text("Save"))
-                          ],
-                        );
-                      });
-                },
-                title: const Text("Set budget"),
+                                  },
+                                  child: const Text("Cancel")),
+                              TextButton(
+                                  onPressed: () async {
+                                    String newValue = _controller.text;
+                                    if (newValue.isNotEmpty) {
+                                      await _setVariable(newValue);
+                                      Navigator.of(context).pop();
+                                    }
+                                  },
+                                  child: const Text("Save"))
+                            ],
+                          );
+                        });
+                  },
+                  title: const Text("Set budget"),
+                ),
               ),
-              ListTile(
-                  leading: const Icon(Icons.feedback_rounded),
-                  title: const Text("Feedback"),
-                  onTap: () =>{submitFeedback(context),
-                  Navigator.of(context).pop()}
+              Padding(
+                padding: const EdgeInsets.all(5.0),
+                child: ListTile(
+                    leading: const Icon(Icons.feedback_rounded),
+                    title: const Text("Feedback"),
+                    onTap: () =>
+                        {submitFeedback(context), Navigator.of(context).pop()}),
               ),
-              ListTile(
-                leading: const Icon(Icons.logout),
-                title: const Text("Log Out"),
-                onTap: () {
-                  Navigator.pop(context);
-                  signOutUser();
-                },
+              Padding(
+                padding: const EdgeInsets.all(5.0),
+                child: ListTile(
+                  leading: const Icon(Icons.logout),
+                  title: const Text("Log Out"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    signOutUser();
+                  },
+                ),
               ),
+              const Spacer(),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(5, 0, 5, 15),
+                child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: ListTile(
+                      tileColor: Colors.red,
+                      shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(20.0),
+                              bottom: Radius.circular(20))),
+                      leading: const Icon(Icons.delete_forever),
+                      title: const Text("Delete All Data"),
+                      onTap: () {
+                        //userdata delete and all
+                      },
+                    )),
+              )
             ],
           ),
         ),
       ),
     );
   }
+
   void submitFeedback(BuildContext context) async {
     BetterFeedback.of(context).show((UserFeedback feedback) {
       //send mail to me
-    FlutterEmailSender.send(Email(
-      body: "$feedback",
-        recipients: ['anirudhagec.genai@gmail.com'],
-        isHTML: false
-    ));
+      FlutterEmailSender.send(Email(
+          body: "$feedback",
+          recipients: ['anirudhagec.genai@gmail.com'],
+          isHTML: false));
     });
   }
-
 }
 
 void showBottomSheetDialog(BuildContext context) {
@@ -358,10 +410,7 @@ void showBottomSheetDialog(BuildContext context) {
       builder: (BuildContext context) {
         return Container(
           height: 500,
-          width: MediaQuery
-              .of(context)
-              .size
-              .width,
+          width: MediaQuery.of(context).size.width,
           color: const Color.fromRGBO(0, 0, 0, 0.001),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
@@ -394,8 +443,8 @@ void showBottomSheetDialog(BuildContext context) {
       });
 }
 
-Future<void> onSave(BuildContext context, String money, String category,
-    String userId) async {
+Future<void> onSave(
+    BuildContext context, String money, String category, String userId) async {
   if (money.isEmpty || category.isEmpty) {
     Fluttertoast.showToast(
         msg: "Please enter a valid expense and category",
