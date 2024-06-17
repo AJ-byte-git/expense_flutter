@@ -8,10 +8,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_email_sender/flutter_email_sender.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:async';
 import 'package:logger/logger.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:showcaseview/showcaseview.dart';
 
 class Main_page extends StatefulWidget {
   const Main_page({super.key});
@@ -26,34 +25,29 @@ void signOutUser() {
 
 class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
   final FirestoreService _firestoreService = FirestoreService();
-  final String docId = 'myVariable'; // Unique ID for your document
   String _variableValue = '';
   final _controller = TextEditingController();
   late Timer _timer;
   final logger = Logger();
-  final GlobalKey _one = GlobalKey();
-  final GlobalKey _two = GlobalKey();
-  final GlobalKey _three = GlobalKey();
-  final GlobalKey _four = GlobalKey();
   final User? user = FirebaseAuth.instance.currentUser;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final GoogleSignIn googleSignIn = GoogleSignIn();
 
   @override
   void initState() {
     super.initState();
-    _loadVariable();
-    // Calculate duration until the end of the current month
-    Duration durationUntilEndOfMonth = _calculateDurationUntilEndOfMonth();
+    if (user != null) {
+      _loadVariable();
+      // Calculate duration until the end of the current month
+      Duration durationUntilEndOfMonth = _calculateDurationUntilEndOfMonth();
 
-    // Initialize the timer to run at the end of the current month
-    _timer = Timer(durationUntilEndOfMonth, () {
-      _updateVariableToZero();
-      // Reschedule for next month
-      _rescheduleEndOfMonthTask();
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      checkFirstRun(context);
-    });
+      // Initialize the timer to run at the end of the current month
+      _timer = Timer(durationUntilEndOfMonth, () {
+        _updateVariableToZero();
+        // Reschedule for next month
+        _rescheduleEndOfMonthTask();
+      });
+    }
   }
 
   @override
@@ -62,28 +56,15 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  Future<void> checkFirstRun(BuildContext context) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    bool? isFirstRun = prefs.getBool('isFirstRun');
-
-    if (isFirstRun == null || isFirstRun) {
-      // Set isFirstRun to false
-      await prefs.setBool('isFirstRun', false);
-
-      // Show the showcase
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ShowCaseWidget.of(context).startShowCase([_one, _two, _three, _four]);
-      });
-    }
-  }
-
   Future<void> _updateVariableToZero() async {
-    try {
-      await _firestoreService.updateVariable(docId, '0');
-      logger.d("Variable updated successfully");
-    } catch (e) {
-      logger.e("change failed: $e");
-      // Handle error, if any
+    if (user != null) {
+      try {
+        await _firestoreService.updateVariable(user!.uid, '0');
+        logger.d("Variable updated successfully");
+      } catch (e) {
+        logger.e("Change failed: $e");
+        // Handle error, if any
+      }
     }
   }
 
@@ -105,48 +86,90 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
   }
 
   Future<void> _loadVariable() async {
-    String? value = await _firestoreService.getVariable(docId);
-    setState(() {
-      _variableValue = value ?? '';
-    });
+    if (user != null) {
+      String? value = await _firestoreService.getVariable(user!.uid);
+      setState(() {
+        _variableValue = value ?? '';
+      });
+    }
   }
 
   Future<void> _setVariable(String value) async {
-    await _firestoreService.setVariable(docId, value);
-    setState(() {
-      _variableValue = value;
-    });
+    if (user != null) {
+      await _firestoreService.setVariable(user!.uid, value);
+      setState(() {
+        _variableValue = value;
+      });
+    }
   }
 
-  Future<void> deleteUserData() async {
-    final user = this.user;
+  Future<void> deleteUserData(BuildContext context) async {
     if (user != null) {
-      String uid = user.uid;
+      String uid = user!.uid;
 
       try {
+        // Reauthenticate the user with Google Sign-In
+        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+        if (googleUser == null) {
+          // The user canceled the sign-in
+          logger.e("Google sign-in was canceled by the user.");
+          return;
+        }
+
+        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+        final AuthCredential credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        await user!.reauthenticateWithCredential(credential);
+
         // Delete user document from Firestore
         await _firestore.collection('users').doc(uid).delete();
 
         // Delete other collections or documents associated with the user if necessary
-        await _firestore
+        QuerySnapshot postsSnapshot = await _firestore
             .collection('users')
             .doc(uid)
             .collection('posts')
-            .get()
-            .then((snapshot) {
-          for (DocumentSnapshot ds in snapshot.docs) {
-            ds.reference.delete();
-          }
-        });
+            .get();
+
+        for (DocumentSnapshot ds in postsSnapshot.docs) {
+          await ds.reference.delete();
+        }
 
         // Delete the user from Firebase Auth
-        await user.delete();
-        logger.d("data deleted successfully");
+        await user!.delete();
+        logger.d("Data deleted successfully");
+
+        // Sign out the user and navigate back
+        await googleSignIn.signOut();
+        signOutUser();
+        Navigator.of(context).pop();
       } catch (e) {
         logger.e("There was an error: $e");
+        // Optionally, show a dialog with the error message to the user
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Error'),
+              content: Text('There was an error deleting your data: $e'),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text('OK'),
+                ),
+              ],
+            );
+          },
+        );
       }
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -195,7 +218,7 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
                               padding: const EdgeInsets.only(top: 15, left: 25),
                               child: StreamBuilder<DocumentSnapshot>(
                                   stream: _firestoreService
-                                      .getVariableStream(docId),
+                                      .getVariableStream(user!.uid),
                                   builder: (BuildContext context,
                                       AsyncSnapshot<DocumentSnapshot>
                                           snapshot) {
@@ -205,7 +228,10 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
                                     }
                                     if (!snapshot.hasData ||
                                         !snapshot.data!.exists) {
-                                      return const Text("No data Found");
+                                      return const Text(
+                                        "Budget: 0",
+                                        style: TextStyle(fontSize: 40),
+                                      );
                                     }
                                     Map<String, dynamic> data = snapshot.data!
                                         .data() as Map<String, dynamic>;
@@ -374,6 +400,35 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
                       title: const Text("Delete All Data"),
                       onTap: () {
                         //userdata delete and all
+                        showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                backgroundColor: Colors.red,
+                                title: const Text("! WARNING !"),
+                                content: const Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Are you sure you want to delete all the data?",
+                                    )
+                                  ],
+                                ),
+                                actions: [
+                                  TextButton(
+                                      onPressed: () {
+                                        deleteUserData(context);
+                                      },
+                                      child: const Text("Delete Anyway")),
+                                  TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                      child: const Text("Cancel"))
+                                ],
+                              );
+                            });
                       },
                     )),
               )
