@@ -61,7 +61,7 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
   }
 
   Color calculateRemainingMoneyColor() {
-    if (money_spent > int.parse(_variableValue)) {
+    if (money_spent >= (int.tryParse(_variableValue)??0)) {
       return Colors
           .red; // If money spent is greater than variable value, return red color
     } else {
@@ -103,7 +103,7 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
     if (user != null) {
       String? value = await _firestoreService.getVariable(user!.uid);
       setState(() {
-        _variableValue = value ?? '';
+        _variableValue = value!;
       });
     }
   }
@@ -274,7 +274,7 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
                           Padding(
                             padding: const EdgeInsets.only(top: 5, left: 25),
                             child: Text(
-                              "Money remaining: ${int.parse(_variableValue) - money_spent}",
+                              "Money remaining: ${(int.tryParse(_variableValue)??0)- money_spent}",
                               style: TextStyle(
                                   fontSize: 24,
                                   color: calculateRemainingMoneyColor()),
@@ -356,8 +356,10 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
                         context: context,
                         builder: (BuildContext context) {
                           return AlertDialog(
+                            backgroundColor: Colors.cyan,
                             title: const Text("Set Variable"),
                             content: TextField(
+                              keyboardType: TextInputType.number,
                               controller: _controller,
                               decoration: const InputDecoration(
                                   hintText: "Enter new value"),
@@ -495,6 +497,7 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(15, 10, 15, 15),
                   child: TextField(
+                    keyboardType: TextInputType.number,
                     controller: textCont,
                     decoration: const InputDecoration(
                         labelText: "Enter your expense here!",
@@ -546,7 +549,6 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
       getTotalMoney(userId);
       setState(() {
         sortCat = category;
-
       });
     } catch (e) {
       Fluttertoast.showToast(
