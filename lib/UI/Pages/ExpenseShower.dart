@@ -7,8 +7,9 @@ import 'package:logger/logger.dart';
 
 class ExpenseShower extends StatefulWidget {
   final String cat;
+  final VoidCallback onExpenseDeleted;
 
-  const ExpenseShower({super.key, required this.cat});
+  const ExpenseShower({super.key, required this.cat, required this.onExpenseDeleted});
 
   @override
   State<ExpenseShower> createState() => _ExpenseShowerState();
@@ -83,6 +84,7 @@ class _ExpenseShowerState extends State<ExpenseShower> {
                       setState(() {
                         documents.removeAt(index);
                       });
+                      widget.onExpenseDeleted();
                     },
                     backgroundColor: Colors.red,
                     foregroundColor: Colors.white,

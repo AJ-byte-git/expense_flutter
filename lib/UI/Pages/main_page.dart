@@ -312,7 +312,9 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
               ]),
             ),
             Expanded(
-              child: ExpenseShower(cat: sortCat),
+              child: ExpenseShower(cat: sortCat, onExpenseDeleted: (){
+                getTotalMoney(user!.uid);
+              }),
             )
           ],
         ),
