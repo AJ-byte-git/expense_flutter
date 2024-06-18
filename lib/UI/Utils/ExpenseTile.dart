@@ -13,6 +13,7 @@ class ExpenseTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      color: Colors.green,
       margin: const EdgeInsets.all(10),
       child: ListTile(
         title: Text(

@@ -5,18 +5,19 @@ import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 
 class ExpenseShower extends StatefulWidget {
-  const ExpenseShower({super.key});
+  final String cat;
+  const ExpenseShower({super.key, required this.cat});
 
   @override
   State<ExpenseShower> createState() => _ExpenseShowerState();
 }
 
 class _ExpenseShowerState extends State<ExpenseShower> {
-  Future<QuerySnapshot> _fetchExpenses(String userId) {
+  Future<QuerySnapshot> _fetchExpenses(String userId, String cat) {
     return FirebaseFirestore.instance
         .collection('data')
         .where('userId', isEqualTo: userId)
-        .orderBy('cat')
+        .where('category', isEqualTo: cat)
         .get();
   }
 
@@ -24,7 +25,7 @@ class _ExpenseShowerState extends State<ExpenseShower> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final userId = user?.uid;
-   final logger = Logger();
+    final logger = Logger();
 
     if (userId == null) {
       // Handle the case where the user is not authenticated
@@ -32,7 +33,7 @@ class _ExpenseShowerState extends State<ExpenseShower> {
     }
 
     return FutureBuilder<QuerySnapshot>(
-      future: _fetchExpenses(userId),
+      future: _fetchExpenses(userId, widget.cat), // Use widget.cat here
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -42,7 +43,7 @@ class _ExpenseShowerState extends State<ExpenseShower> {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const Center(child: Text('No data found'));
+          return const Center(child: Text('Enter your expense'));
         }
 
         var documents = snapshot.data!.docs;
@@ -51,7 +52,7 @@ class _ExpenseShowerState extends State<ExpenseShower> {
             var data = documents[index].data() as Map<String, dynamic>;
             logger.d("expense: $index: $data"); // Debugging line
             return ExpenseTile(
-              category: data['cat'],
+              category: data['category'],
               amount: data['money'],
             );
           },

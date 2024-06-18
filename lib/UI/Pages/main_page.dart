@@ -11,6 +11,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:async';
 import 'package:logger/logger.dart';
+import 'package:uuid/uuid.dart';
 
 class Main_page extends StatefulWidget {
   const Main_page({super.key});
@@ -32,6 +33,8 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
   final User? user = FirebaseAuth.instance.currentUser;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final GoogleSignIn googleSignIn = GoogleSignIn();
+  String sortCat = "";
+  int money_spent = 0;
 
   @override
   void initState() {
@@ -48,12 +51,23 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
         _rescheduleEndOfMonthTask();
       });
     }
+    getTotalMoney(user!.uid);
   }
 
   @override
   void dispose() {
     _timer.cancel(); // Cancel the timer to avoid memory leaks
     super.dispose();
+  }
+
+  Color calculateRemainingMoneyColor() {
+    if (money_spent > int.parse(_variableValue)) {
+      return Colors
+          .red; // If money spent is greater than variable value, return red color
+    } else {
+      return Colors
+          .green; // Otherwise, return black color (or any other default color)
+    }
   }
 
   Future<void> _updateVariableToZero() async {
@@ -108,7 +122,7 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
       String uid = user!.uid;
 
       try {
-        // Reauthenticate the user with Google Sign-In
+        // Re-authenticate the user with Google Sign-In
         final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
         if (googleUser == null) {
           // The user canceled the sign-in
@@ -116,7 +130,8 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
           return;
         }
 
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+        final GoogleSignInAuthentication googleAuth =
+            await googleUser.authentication;
         final AuthCredential credential = GoogleAuthProvider.credential(
           accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
@@ -153,14 +168,14 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
-              title: Text('Error'),
+              title: const Text('Error'),
               content: Text('There was an error deleting your data: $e'),
               actions: <Widget>[
                 TextButton(
                   onPressed: () {
                     Navigator.of(context).pop();
                   },
-                  child: Text('OK'),
+                  child: const Text('OK'),
                 ),
               ],
             );
@@ -169,7 +184,6 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
       }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -205,7 +219,7 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
               padding: const EdgeInsets.all(10.0),
               child: Container(
                   decoration: BoxDecoration(
-                      color: Colors.deepOrange,
+                      color: Colors.orangeAccent,
                       borderRadius: BorderRadius.circular(20)),
                   height: 200,
                   width: 380,
@@ -242,26 +256,28 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
                                   })),
                         ],
                       ),
-                      const Row(
+                      Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Padding(
-                            padding: EdgeInsets.only(left: 25, top: 10),
+                            padding: const EdgeInsets.only(left: 25, top: 10),
                             child: Text(
-                              "Money spent : ",
-                              style: TextStyle(fontSize: 24),
+                              "Money spent : $money_spent",
+                              style: const TextStyle(fontSize: 24),
                             ),
                           )
                         ],
                       ),
-                      const Row(
+                      Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Padding(
-                            padding: EdgeInsets.only(top: 5, left: 25),
+                            padding: const EdgeInsets.only(top: 5, left: 25),
                             child: Text(
-                              "//remaining",
-                              style: TextStyle(fontSize: 38),
+                              "Money remaining: ${int.parse(_variableValue) - money_spent}",
+                              style: TextStyle(
+                                  fontSize: 24,
+                                  color: calculateRemainingMoneyColor()),
                             ),
                           ),
                         ],
@@ -276,7 +292,9 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
                 scrollDirection: Axis.horizontal,
                 child: CategoryWidget(
                     onCategorySelected: (String selectedCategory) {
-                  // Handle the category selected
+                  setState(() {
+                    sortCat = selectedCategory;
+                  });
                 }),
               ),
             ),
@@ -293,8 +311,8 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
                 )
               ]),
             ),
-            const Expanded(
-              child: ExpenseShower(),
+            Expanded(
+              child: ExpenseShower(cat: sortCat),
             )
           ],
         ),
@@ -448,79 +466,113 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
           isHTML: false));
     });
   }
-}
 
-void showBottomSheetDialog(BuildContext context) {
-  final User? user = FirebaseAuth.instance.currentUser;
-  if (user == null) {
-    Fluttertoast.showToast(
-        msg: "User not signed in", toastLength: Toast.LENGTH_SHORT);
-    return;
-  }
+  void showBottomSheetDialog(BuildContext context) {
+    final User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      Fluttertoast.showToast(
+          msg: "User not signed in", toastLength: Toast.LENGTH_SHORT);
+      return;
+    }
 
-  final textCont = TextEditingController();
+    final textCont = TextEditingController();
 
-  showModalBottomSheet(
-      context: context,
-      builder: (BuildContext context) {
-        return Container(
-          height: 500,
-          width: MediaQuery.of(context).size.width,
-          color: const Color.fromRGBO(0, 0, 0, 0.001),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Padding(
-                  padding: EdgeInsets.all(15.0),
-                  child: Text("Expense", style: TextStyle(fontSize: 24))),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(15, 10, 15, 15),
-                child: TextField(
-                  controller: textCont,
-                  decoration: const InputDecoration(
-                      labelText: "Enter your expense here!",
-                      border: OutlineInputBorder()),
+    showModalBottomSheet(
+        context: context,
+        builder: (BuildContext context) {
+          return Container(
+            height: 500,
+            width: MediaQuery.of(context).size.width,
+            color: const Color.fromRGBO(0, 0, 0, 0.001),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Padding(
+                    padding: EdgeInsets.all(15.0),
+                    child: Text("Expense", style: TextStyle(fontSize: 24))),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(15, 10, 15, 15),
+                  child: TextField(
+                    controller: textCont,
+                    decoration: const InputDecoration(
+                        labelText: "Enter your expense here!",
+                        border: OutlineInputBorder()),
+                  ),
                 ),
-              ),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(15, 15, 15, 15),
-                child: Text("Choose the category!"),
-              ),
-              CategoryBottomSheet(onSave: (String selectedCategory) {
-                onSave(
-                    context, textCont.text.trim(), selectedCategory, user.uid);
-              })
-            ],
-          ),
-        );
-      });
-}
-
-Future<void> onSave(
-    BuildContext context, String money, String category, String userId) async {
-  if (money.isEmpty || category.isEmpty) {
-    Fluttertoast.showToast(
-        msg: "Please enter a valid expense and category",
-        toastLength: Toast.LENGTH_SHORT);
-    return;
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(15, 15, 15, 15),
+                  child: Text("Choose the category!"),
+                ),
+                CategoryBottomSheet(onSave: (String selectedCategory) {
+                  onSave(context, textCont.text.trim(), selectedCategory,
+                      user.uid);
+                })
+              ],
+            ),
+          );
+        });
   }
 
-  try {
-    await FirebaseFirestore.instance.collection('data').add({
-      'money': money,
-      'category': category,
-      'userId': userId,
-      'timestamp': FieldValue.serverTimestamp(), // Optional: Add a timestamp
-    });
+  Future<void> onSave(BuildContext context, String money, String category,
+      String userId) async {
+    if (money.isEmpty || category.isEmpty) {
+      Fluttertoast.showToast(
+          msg: "Please enter a valid expense and category",
+          toastLength: Toast.LENGTH_SHORT);
+      return;
+    }
 
-    Fluttertoast.showToast(
-        msg: "Expense added successfully", toastLength: Toast.LENGTH_SHORT);
+    // Generate a unique identifier
+    var uuid = const Uuid();
+    String uniqueId = uuid.v4();
 
-    Navigator.pop(context); // Close the bottom sheet
-  } catch (e) {
-    Fluttertoast.showToast(
-        msg: "Failed to add expense: $e", toastLength: Toast.LENGTH_LONG);
+    // Create an index field by combining userId, category, and unique identifier
+    String indexField = '$userId.$category.$uniqueId';
+
+    try {
+      await FirebaseFirestore.instance.collection('data').add({
+        'money': money,
+        'category': category,
+        'userId': userId,
+        'indexField': indexField,
+        'timestamp': FieldValue.serverTimestamp(), // Optional: Add a timestamp
+      });
+      Fluttertoast.showToast(
+          msg: "Expense added successfully", toastLength: Toast.LENGTH_SHORT);
+
+      Navigator.pop(context); // Close the bottom sheet
+      getTotalMoney(userId);
+      setState(() {
+        sortCat = category;
+
+      });
+    } catch (e) {
+      Fluttertoast.showToast(
+          msg: "Failed to add expense: $e", toastLength: Toast.LENGTH_LONG);
+    }
+  }
+
+  Future<void> getTotalMoney(String uid) async {
+    int totalMoney = 0;
+
+    try {
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+          .collection('data')
+          .where('userId', isEqualTo: uid)
+          .get();
+
+      querySnapshot.docs.forEach((doc) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        int money = int.parse(data['money']); // Convert to integer
+        totalMoney += money;
+      });
+      setState(() {
+        money_spent = totalMoney;
+      });
+    } catch (e) {
+      logger.e("There was an error retrieving the data: $e");
+    }
   }
 }
