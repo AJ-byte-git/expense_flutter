@@ -487,7 +487,7 @@ class _Main_pageState extends State<Main_page> with TickerProviderStateMixin {
           return Container(
             height: 500,
             width: MediaQuery.of(context).size.width,
-            color: const Color.fromRGBO(0, 0, 0, 0.001),
+            color:Colors.cyan,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.start,
